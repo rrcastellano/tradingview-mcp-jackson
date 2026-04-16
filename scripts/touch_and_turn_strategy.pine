@@ -1,0 +1,142 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © antigravity
+
+//@version=5
+strategy("Touch and Turn Scalper Strategy", shorttitle="TT Scalper", overlay=true, initial_capital=10000, default_qty_type=strategy.percent_of_equity, default_qty_value=10, commission_type=strategy.commission.cash_per_order, commission_value=0.5)
+
+// --- INPUTS ---
+atr_period = input.int(14, "ATR Period (Daily)", minval=1)
+atr_multiplier = input.float(0.25, "ATR Multiplier (% of Daily ATR)", step=0.05)
+show_levels = input.bool(true, "Show Fibonacci Levels")
+show_labels = input.bool(true, "Show Condition Labels")
+
+// --- TIMEZONE & SESSION ---
+// Forced America/New_York to correctly identify 09:30 AM open regardless of user timezone
+ny_timezone = "America/New_York"
+is_new_day = ta.change(time("D", "", ny_timezone))
+
+// Session Definitions
+// Market Open: 09:30 NY
+// Opening Candle End: 09:45 NY
+// Execution Window End: 11:00 NY (90 minutes after open)
+session_opening = time(timeframe.period, "0930-0945", ny_timezone)
+session_full_90m = time(timeframe.period, "0930-1100", ny_timezone)
+
+// --- ATR CALCULATION ---
+daily_atr = request.security(syminfo.tickerid, "D", ta.atr(atr_period), lookahead=barmerge.lookahead_on)
+liquidity_threshold = daily_atr * atr_multiplier
+
+// --- STATE VARIABLES ---
+var float or_high = na
+var float or_low = na
+var float or_open = na
+var float or_close = na
+var bool is_manipulated = na
+var bool trade_triggered = false
+
+// Reset state at start of a new day
+if is_new_day
+    or_high := na
+    or_low := na
+    or_open := na
+    or_close := na
+    is_manipulated := na
+    trade_triggered := false
+
+// Capture the 15-minute Opening Range
+// We detect the end of the 09:30-09:45 window
+is_first_15m_end = not na(session_opening[1]) and na(session_opening)
+
+if is_first_15m_end and na(or_high)
+    // Find high/low of the bars in the session_opening window
+    // Since we are likely on 1m chart, we look back until the start of session
+    float high_val = high[1]
+    float low_val = low[1]
+    float open_val = open[1]
+    
+    // Simple loop back to find OR values if on lower timeframe
+    for i = 1 to 20 // MAX 20 bars lookback for 1m context
+        if na(session_opening[i])
+            break
+        high_val := math.max(high_val, high[i])
+        low_val := math.min(low_val, low[i])
+        open_val := open[i]
+    
+    or_high := high_val
+    or_low := low_val
+    or_open := open_val
+    or_close := close[1]
+    
+    float range_size = or_high - or_low
+    is_manipulated := range_size >= liquidity_threshold
+
+// --- STRATEGY LOGIC ---
+if not na(or_high) and not na(session_full_90m) and is_manipulated and not trade_triggered
+    bool is_bullish = or_close > or_open
+    
+    // Fibonacci Targets
+    float fib_382 = or_low + (or_high - or_low) * 0.382
+    float fib_618 = or_low + (or_high - or_low) * 0.618
+    
+    if is_bullish
+        // Rule: Bullish candle -> Short at High, TP 61.8%
+        float entry_price = or_high
+        float tp_price = fib_618
+        float risk_dist = (entry_price - tp_price) / 2
+        float sl_price = entry_price + risk_dist
+        
+        strategy.entry("Short TT", strategy.short, limit=entry_price, comment="Short Limit @ OR High")
+        strategy.exit("Exit Short", "Short TT", limit=tp_price, stop=sl_price, comment_loss="SL", comment_profit="TP")
+        trade_triggered := true
+        
+    else
+        // Rule: Bearish candle -> Long at Low, TP 38.2%
+        float entry_price = or_low
+        float tp_price = fib_382
+        float risk_dist = (tp_price - entry_price) / 2
+        float sl_price = entry_price - risk_dist
+        
+        strategy.entry("Long TT", strategy.long, limit=entry_price, comment="Long Limit @ OR Low")
+        strategy.exit("Exit Long", "Long TT", limit=tp_price, stop=sl_price, comment_loss="SL", comment_profit="TP")
+        trade_triggered := true
+
+// Cancel orders if not filled by 11:00 AM NY
+if na(session_full_90m) and strategy.position_size == 0
+    strategy.cancel_all()
+
+// --- VISUALS ---
+// Background for the 15m window
+bgcolor(not na(session_opening) ? color.new(color.blue, 90) : na)
+// Highlight validated liquidity candle
+bgcolor(is_first_15m_end and is_manipulated ? color.new(color.yellow, 80) : na)
+
+plot(or_high, "OR High", color=color.green, style=plot.style_linebr)
+plot(or_low, "OR Low", color=color.red, style=plot.style_linebr)
+
+// Plot Fibonacci levels if trade is set
+var line fib_target_line = na
+var line fib_stop_line = na
+var label fib_target_label = na
+var label fib_stop_label = na
+var label cond_label = na
+
+if show_levels and not na(or_high) and is_manipulated and barstate.islast
+    bool is_bullish = or_close > or_open
+    float tp = is_bullish ? or_low + (or_high - or_low) * 0.618 : or_low + (or_high - or_low) * 0.382
+    float sl = is_bullish ? or_high + (or_high - tp)/2 : or_low - (tp - or_low)/2
+    
+    line.delete(fib_target_line)
+    line.delete(fib_stop_line)
+    label.delete(fib_target_label)
+    label.delete(fib_stop_label)
+    fib_target_line := line.new(bar_index, tp, bar_index + 10, tp, color=color.lime, width=2)
+    fib_stop_line := line.new(bar_index, sl, bar_index + 10, sl, color=color.maroon, width=2)
+    
+    if show_labels
+        fib_target_label := label.new(bar_index + 10, tp, "Target (Fib)", color=color.lime, textcolor=color.black, style=label.style_label_left)
+        fib_stop_label := label.new(bar_index + 10, sl, "Stop Loss (RR 2:1)", color=color.maroon, textcolor=color.white, style=label.style_label_left)
+
+// Condition Info Label
+if show_labels and is_first_15m_end and not na(is_manipulated)
+    label.delete(cond_label)
+    cond_label := label.new(bar_index, high, is_manipulated ? "Liquidity Confirmed\nATR 25% Met" : "Low Volatility\nNo Manipulation", color=is_manipulated ? color.green : color.gray, textcolor=color.white)

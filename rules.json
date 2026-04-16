@@ -1,0 +1,40 @@
+{
+  "watchlist": ["TVC:SPX", "VIX"],
+  "default_timeframe": "1",
+
+  "bias_criteria": {
+    "bullish": [
+      "CumTICK Delta Table shows positive accumulation",
+      "Price is above the Bollinger Basis and VWAP",
+      "RSI is below 60 (room to run)",
+      "MACD Histogram is above 0"
+    ],
+    "bearish": [
+      "CumTICK Delta Table shows massive negative accumulation (< -1000)",
+      "Price is pressing against the lower Bollinger Band and below VWAP",
+      "RSI is above 40 (room to drop)",
+      "MACD Histogram is negative"
+    ],
+    "neutral": [
+      "CumTICK is flat or oscillating near 0",
+      "Price is chopping inside the Bollinger Bands and near VWAP",
+      "RSI is between 45 and 55",
+      "VIX is relatively low"
+    ]
+  },
+
+  "options_0dte_rules": {
+    "vix_thresholds": "If VIX > 20, use Asymmetric/Skewed Iron Condors. If VIX < 15, symmetric Condors are acceptable.",
+    "strike_selection": "DO NOT blindly trust Pine Script Delta approximations. Always verify against broker Delta. Ideal safe distance is 50+ points (Delta ~0.06 to 0.08).",
+    "stop_loss_geometry": "Use Zero-Cost Hedge strategy. Set Stop Trigger Buy-at-Close around $2.60 and Limit at $2.85 per leg to ensure the survived leg finances the stopped out leg."
+  },
+
+  "risk_rules": [
+    "Never sell 0DTE options at strike < 40 points from Spot unless technically protected by Topo do Dia (HOD) / Fundo do Dia (LOD)",
+    "Always place Stop-Limit at Max $2.85 for each short leg (Zero-Cost Hedge protocol)",
+    "Draw visually a 10-15 point Warning Line before the Short Strike for manual rolling decisions",
+    "Monitor '0DTE Strategy Navigator' Output, but cross-reference strikes with Broker Reality"
+  ],
+
+  "notes": "Focused on 0DTE SPX. Focus heavily on CumTICK and VIX macro context."
+}

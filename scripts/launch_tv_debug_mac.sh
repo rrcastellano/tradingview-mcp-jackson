@@ -7,6 +7,7 @@ PORT="${1:-9222}"
 # Auto-detect TradingView install location
 APP=""
 LOCATIONS=(
+  "/Users/ronaldo.ribeirocastellano/Appz/TradingView.app/Contents/MacOS/TradingView"
   "/Applications/TradingView.app/Contents/MacOS/TradingView"
   "$HOME/Applications/TradingView.app/Contents/MacOS/TradingView"
 )

@@ -120,6 +120,15 @@ These tools can return large payloads. Follow these rules to avoid context bloat
 - OHLCV capped at 500 bars, trades at 20 per request
 - Pine labels capped at 50 per study by default (pass `max_labels` to override)
 
+## Mandatory Procedures
+
+### Morning Brief Workflow
+Whenever the user requests a "Morning Brief" or "tv brief", the agent MUST:
+1. **Launch TradingView**: Run `/Users/ronaldo.ribeirocastellano/Github/tradingview-mcp-jackson/scripts/launch_tv_debug_mac.sh`.
+2. **Wait for Load**: Ensure the target chart is loaded and CDP is responding.
+3. **Execute Brief**: Run the `morning_brief` tool.
+4. **Analyze Indicators**: Specifically cross-reference VWAP, RSI, and Bollinger Bands as defined in `rules.json`.
+
 ## Architecture
 
 ```
