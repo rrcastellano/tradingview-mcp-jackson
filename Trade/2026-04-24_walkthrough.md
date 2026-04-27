@@ -76,4 +76,4 @@
 4. **Theta é aliado no final.** A partir das 15h, o decaimento temporal forçou a convergência do preço da estrutura para o valor intrínseco.
 
 ## Evidência Visual (Gráfico no Encerramento)
-![Gráfico SPX Trade Encerrado](/Users/ronaldo.ribeirocastellano/.gemini/antigravity/brain/c545125a-40e6-4f09-8c65-f651eceef2fe/spx_trade_closed.png)
+![Gráfico SPX Trade Encerrado](./2026-04-24_spx_trade_closed.png)
