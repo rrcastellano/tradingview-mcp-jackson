@@ -25,10 +25,11 @@ const CDP_PORT = 9222;
 const DATA_DIR = '/Users/ronaldo.ribeirocastellano/Github/alpaca/data';
 
 const SYMBOLS = {
-  SPX:  'SP:SPX',
-  VIX:  'CBOE:VIX',
-  TICK: 'USI:TICK',
-  ES:   'ES1!',
+  SPX:  { sym: 'SP:SPX', tf: '1' },
+  VIX:  { sym: 'CBOE:VIX', tf: '1' },
+  TICK: { sym: 'NYSE:TICK', tf: '1' },
+  ES:   { sym: 'ES1!', tf: '1' },
+  ADDN: { sym: 'USI:ADDN', tf: 'D' },
 };
 
 const TV = 'window.TradingViewApi._activeChartWidgetWV.value()';
@@ -210,7 +211,7 @@ async function connect() {
 }
 
 // ─── Update one symbol ──────────────────────────────────────────────
-async function updateSymbol(tv, sym, tvSym, csvPath, endTs, dryRun) {
+async function updateSymbol(tv, sym, tvSym, tf, csvPath, endTs, dryRun) {
   const lastTs = readLastTs(csvPath);
   const lastDate = new Date(lastTs * 1000).toISOString();
 
@@ -226,7 +227,7 @@ async function updateSymbol(tv, sym, tvSym, csvPath, endTs, dryRun) {
   // Set symbol + 1-min
   const actualSym = await tv.setSymbol(tvSym);
   console.log(`   Symbol:     ${actualSym}`);
-  const actualTf = await tv.setTimeframe('1');
+  const actualTf = await tv.setTimeframe(tf);
   console.log(`   Timeframe:  ${actualTf}`);
 
   // Reset to realtime, then scroll left to load history
@@ -324,11 +325,13 @@ async function main() {
 
     const results = [];
     for (const sym of syms) {
-      const tvSym = SYMBOLS[sym];
-      if (!tvSym) { console.log(`\n⚠️  Unknown symbol: ${sym}`); continue; }
+      const config = SYMBOLS[sym];
+      if (!config) { console.log(`\n⚠️  Unknown symbol: ${sym}`); continue; }
+      const tvSym = config.sym;
+      const tf = config.tf;
       const csvPath = path.join(DATA_DIR, `${sym}.csv`);
       if (!fs.existsSync(csvPath)) { console.log(`\n⚠️  ${csvPath} not found`); continue; }
-      results.push(await updateSymbol(tv, sym, tvSym, csvPath, endTs, dryRun));
+      results.push(await updateSymbol(tv, sym, tvSym, tf, csvPath, endTs, dryRun));
     }
 
     // Summary
